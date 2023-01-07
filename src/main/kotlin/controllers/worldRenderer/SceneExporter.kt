@@ -8,7 +8,6 @@ import controllers.worldRenderer.entities.TileModel
 import controllers.worldRenderer.entities.TilePaint
 import models.DebugOptionsModel
 import models.formats.GlTFExporter
-import models.formats.MaterialBuffers
 import models.formats.MeshFormatExporter
 import models.scene.REGION_SIZE
 import models.scene.Scene
@@ -56,7 +55,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
                                 val tileCol = tilePlane[x]
                                 for (y in 0 until REGION_SIZE) {
                                     val tile = tileCol[y] ?: continue
-                                    this.upload(fmt, tile, baseX + x, baseY + y)
+                                    this.upload(fmt, tile, baseX + x, baseY + y, z)
                                 }
                             }
                         }
@@ -87,51 +86,50 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
             .withZone(ZoneOffset.UTC)
             .format(Instant.now())
 
-    private fun MeshFormatExporter.getMaterialBuffersAndAddTexture(textureId: Int): MaterialBuffers {
+    private fun MeshFormatExporter.addTexture(textureId: Int) {
         if (textureId != -1) {
             addTextureMaterial(
                 textureId,
                 "./${AppConstants.TEXTURES_DIRECTORY_NAME}/$textureId.png"
             )
         }
-        return getOrCreateBuffersForMaterial(textureId)
     }
 
-    private fun upload(fmt: MeshFormatExporter, tile: SceneTile, x: Int, y: Int) {
+    private fun upload(fmt: MeshFormatExporter, tile: SceneTile, x: Int, y: Int, z: Int) {
         if (debugOptionsModel.showTilePaint.value.get()) {
-            tile.tilePaint?.let { upload(fmt, it, x, y, 0) }
+            tile.tilePaint?.let { upload(fmt, it, x, y, 0, z) }
         }
         if (debugOptionsModel.showTileModels.value.get()) {
-            tile.tileModel?.let { upload(fmt, it, x, y, 0) }
+            tile.tileModel?.let { upload(fmt, it, x, y, 0, z) }
         }
 
         tile.wall?.let { wall ->
-            uploadIfStatic(fmt, wall.entity, x, y, wall.entity.height)
+            uploadIfStatic(fmt, wall.entity, x, y, wall.entity.height, z)
             wall.entity2?.let {
-                uploadIfStatic(fmt, it, x, y, it.height)
+                uploadIfStatic(fmt, it, x, y, it.height, z)
             }
         }
 
         tile.floorDecoration?.entity?.let {
-            uploadIfStatic(fmt, it, x, y, it.height)
+            uploadIfStatic(fmt, it, x, y, it.height, z)
         }
         tile.wallDecoration?.entity?.let {
-            uploadIfStatic(fmt, it, x, y, it.height)
+            uploadIfStatic(fmt, it, x, y, it.height, z)
         }
         tile.wallDecoration?.entity2?.let {
-            uploadIfStatic(fmt, it, x, y, it.height)
+            uploadIfStatic(fmt, it, x, y, it.height, z)
         }
 
         tile.gameObjects.map { it.entity }.forEach {
-            uploadIfStatic(fmt, it, x, y, it.height)
+            uploadIfStatic(fmt, it, x, y, it.height, z)
         }
     }
 
-    private fun uploadIfStatic(fmt: MeshFormatExporter, entity: Entity?, tileX: Int, tileY: Int, height: Int) {
-        if (entity is StaticObject) uploadModel(fmt, entity, tileX, tileY, height)
+    private fun uploadIfStatic(fmt: MeshFormatExporter, entity: Entity?, tileX: Int, tileY: Int, height: Int, z: Int) {
+        if (entity is StaticObject) uploadModel(fmt, entity, tileX, tileY, height, z)
     }
 
-    private fun upload(fmt: MeshFormatExporter, tile: TilePaint, tileX: Int, tileY: Int, height: Int) {
+    private fun upload(fmt: MeshFormatExporter, tile: TilePaint, tileX: Int, tileY: Int, height: Int, tileZ: Int) {
         val swHeight = tile.swHeight
         val seHeight = tile.seHeight
         val neHeight = tile.neHeight
@@ -152,42 +150,44 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
             val vertexBx = 0
             val vertexBy = 128
 
-            val materialBuffer = fmt.getMaterialBuffersAndAddTexture(tile.texture)
+            fmt.addTexture(tile.texture)
+
+            val objectBuffer = fmt.getOrCreateBuffersForTile(tileZ, tile.texture)
 
             val x = tileX * Constants.LOCAL_TILE_SIZE
             val z = tileY * Constants.LOCAL_TILE_SIZE
-            materialBuffer.addVertex(
+            objectBuffer.addVertex(
                 (vertexAx + x).toFloat() / scale,
                 (neHeight + height).toFloat() / scale,
                 (vertexAy + z).toFloat() / scale,
                 1f, 1f, neColor
             )
-            materialBuffer.addVertex(
+            objectBuffer.addVertex(
                 (vertexBx + x).toFloat() / scale,
                 (nwHeight + height).toFloat() / scale,
                 (vertexBy + z).toFloat() / scale,
                 0f, 1f, nwColor
             )
-            materialBuffer.addVertex(
+            objectBuffer.addVertex(
                 (vertexCx + x).toFloat() / scale,
                 (seHeight + height).toFloat() / scale,
                 (vertexCy + z).toFloat() / scale,
                 1f, 0f, seColor
             )
 
-            materialBuffer.addVertex(
+            objectBuffer.addVertex(
                 (vertexDx + x).toFloat() / scale,
                 (swHeight + height).toFloat() / scale,
                 (vertexDy + z).toFloat() / scale,
                 0f, 0f, swColor
             )
-            materialBuffer.addVertex(
+            objectBuffer.addVertex(
                 (vertexCx + x).toFloat() / scale,
                 (seHeight + height).toFloat() / scale,
                 (vertexCy + z).toFloat() / scale,
                 1f, 0f, seColor
             )
-            materialBuffer.addVertex(
+            objectBuffer.addVertex(
                 (vertexBx + x).toFloat() / scale,
                 (nwHeight + height).toFloat() / scale,
                 (vertexBy + z).toFloat() / scale,
@@ -196,7 +196,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
         }
     }
 
-    private fun upload(fmt: MeshFormatExporter, tileModel: TileModel, tileX: Int, tileY: Int, height: Int) {
+    private fun upload(fmt: MeshFormatExporter, tileModel: TileModel, tileX: Int, tileY: Int, height: Int, tileZ: Int) {
         val faceX = tileModel.faceX
         val faceY = tileModel.faceY
         val faceZ = tileModel.faceZ
@@ -233,9 +233,12 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
                 val vertexZC = vertexZ[triangleC]
 
                 val textureId = if (triangleTextures != null) triangleTextures[i] else -1
-                val materialBuffer = fmt.getMaterialBuffersAndAddTexture(textureId)
 
-                materialBuffer.addVertex(
+                fmt.addTexture(textureId)
+
+                val objectBuffer = fmt.getOrCreateBuffersForTile(tileZ, textureId)
+
+                objectBuffer.addVertex(
                     (vertexXA + x).toFloat() / scale,
                     (vertexY[triangleA] + height).toFloat() / scale,
                     (vertexZA + z).toFloat() / scale,
@@ -243,7 +246,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
                     vertexZA.toFloat() / 128.0f,
                     colorA
                 )
-                materialBuffer.addVertex(
+                objectBuffer.addVertex(
                     (vertexXB + x).toFloat() / scale,
                     (vertexY[triangleB] + height).toFloat() / scale,
                     (vertexZB + z).toFloat() / scale,
@@ -251,7 +254,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
                     vertexZB.toFloat() / 128.0f,
                     colorB
                 )
-                materialBuffer.addVertex(
+                objectBuffer.addVertex(
                     (vertexXC + x).toFloat() / scale,
                     (vertexY[triangleC] + height).toFloat() / scale,
                     (vertexZC + z).toFloat() / scale,
@@ -263,7 +266,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
         }
     }
 
-    private fun uploadModel(fmt: MeshFormatExporter, entity: Entity, tileX: Int, tileY: Int, height: Int) {
+    private fun uploadModel(fmt: MeshFormatExporter, entity: Entity, tileX: Int, tileY: Int, height: Int, z: Int) {
         val model = entity.model
 
         val showOnly = debugOptionsModel.showOnlyModelType.value.get()
@@ -274,11 +277,11 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
         val triangleCount = model.modelDefinition.faceCount
 
         for (i in 0 until triangleCount) {
-            pushFace(fmt, model, i, tileX, tileY, height)
+            pushFace(fmt, model, i, tileX, tileY, height, z, entity.objectDefinition.id, entity.type)
         }
     }
 
-    private fun pushFace(fmt: MeshFormatExporter, model: Model, face: Int, tileX: Int, tileY: Int, height: Int) {
+    private fun pushFace(fmt: MeshFormatExporter, model: Model, face: Int, tileX: Int, tileY: Int, height: Int, objectZ: Int, objectId: Int, objectTypeId: Int) {
         val modelDefinition = model.modelDefinition
 
         val vertexX = model.vertexPositionsX
@@ -331,9 +334,12 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
             else face * 6
 
         val textureId = if (faceTextures != null) faceTextures[face].toInt() else -1
-        val materialBuffer = fmt.getMaterialBuffersAndAddTexture(textureId)
 
-        materialBuffer.addVertex(
+        fmt.addTexture(textureId)
+
+        val objectBuffer = fmt.getOrCreateBuffersForObject(objectZ, objectTypeId, objectId, textureId)
+
+        objectBuffer.addVertex(
             (vertexX[triangleA] + x).toFloat() / scale,
             (vertexY[triangleA] + height).toFloat() / scale,
             (vertexZ[triangleA] + z).toFloat() / scale,
@@ -341,7 +347,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
             alpha or priority or color1
         )
 
-        materialBuffer.addVertex(
+        objectBuffer.addVertex(
             (vertexX[triangleB] + x).toFloat() / scale,
             (vertexY[triangleB] + height).toFloat() / scale,
             (vertexZ[triangleB] + z).toFloat() / scale,
@@ -349,7 +355,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
             alpha or priority or color2
         )
 
-        materialBuffer.addVertex(
+        objectBuffer.addVertex(
             (vertexX[triangleC] + x).toFloat() / scale,
             (vertexY[triangleC] + height).toFloat() / scale,
             (vertexZ[triangleC] + z).toFloat() / scale,

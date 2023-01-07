@@ -2,12 +2,23 @@ package models.formats
 
 /** A buffered 3D mesh file format writer. */
 interface MeshFormatExporter {
-    /** (Create and) retrieve the buffers for the given material ID.
+    /** (Create and) retrieve the buffers for the given tile.
      *
+     *  @param z The RuneScape z value for the object.
      *  @param materialId The RuneScape material ID, or a negative value for flat colours.
      *  @return The buffers for the given material ID.
      */
-    fun getOrCreateBuffersForMaterial(materialId: Int): MaterialBuffers
+    fun getOrCreateBuffersForTile(z: Int, materialId: Int): ObjectBuffers
+
+    /** (Create and) retrieve the buffers for the given Object.
+     *
+     *  @param z The RuneScape z value for the object.
+     *  @param objectType The RuneScape object type ID.
+     *  @param objectId The RuneScape object ID.
+     *  @param materialId The RuneScape material ID, or a negative value for flat colours.
+     *  @return The buffers for the given material ID.
+     */
+    fun getOrCreateBuffersForObject(z: Int, objectType: Int, objectId: Int, materialId: Int): ObjectBuffers
 
     /** Assigns a texture to the given RuneScape material ID.
      *  Subsequent calls with the same material ID will be ignored.

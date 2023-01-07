@@ -3,7 +3,7 @@ package models.formats
 import cache.utils.ColorPalette
 import java.awt.Color
 
-class MaterialBuffers(isTextured: Boolean) {
+class ObjectBuffers(isTextured: Boolean) {
     val positions = FloatVectorBuffer(3)
     val texcoords: FloatVectorBuffer?
     val colors: FloatVectorBuffer?

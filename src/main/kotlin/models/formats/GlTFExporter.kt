@@ -20,7 +20,12 @@ import utils.ChunkWriteListener
 import java.io.File
 
 class GlTFExporter(private val directory: String, private val chunkWriteListeners: List<ChunkWriteListener>) : MeshFormatExporter {
-    private val materialMap = HashMap<Int, MaterialBuffers>()
+
+    data class TileData(val z: Int, val materialId: Int)
+    data class ObjectData(val z: Int, val objectTypeId: Int, val objectId: Int, val materialId: Int)
+
+    private val tileMap = HashMap<TileData, ObjectBuffers>()
+    private val objectMap = HashMap<ObjectData, ObjectBuffers>()
     private val rsIndexToMaterialIndex = HashMap<Int, Int>()
     private val sceneNodes = ArrayList<Int>()
     private val chunkBuffer = ByteChunkBuffer()
@@ -33,14 +38,14 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
 
     private val nullMaterial = createNullTextureMaterial(gltfModel)
 
-    private fun addMesh(material: Int, buffer: ByteChunkBuffer): Node {
-        val materialBuffer = materialMap[material]!!
+    private fun addObject(objectData: ObjectData, buffer: ByteChunkBuffer): Node {
+        val materialBuffer = objectMap[objectData]!!
 
         val positionsAccessor = addAccessorForFloats(materialBuffer.positions, buffer)
         var texCoordsAccessor: Int? = null
         var colorsAccessor: Int? = null
 
-        if (material != -1) {
+        if (objectData.materialId != -1) {
             texCoordsAccessor = addAccessorForFloats(materialBuffer.texcoords!!, buffer)
         } else {
             colorsAccessor = addAccessorForFloats(materialBuffer.colors!!, buffer)
@@ -51,14 +56,42 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
 
         // primitive
         val primitives = ArrayList<Primitive>()
-        primitives.add(Primitive(attributes, rsIndexToMaterialIndex[material] ?: nullMaterial))
+        primitives.add(Primitive(attributes, rsIndexToMaterialIndex[objectData.materialId] ?: nullMaterial))
 
         // mesh
         val mesh = Mesh(primitives)
         gltfModel.meshes.add(mesh)
 
         // node
-        return Node(mesh = gltfModel.meshes.size - 1)
+        return Node(gltfModel.meshes.size - 1, name = "obj_" + objectData.objectId)
+    }
+
+    private fun addTile(tileData: TileData, buffer: ByteChunkBuffer): Node {
+        val materialBuffer = tileMap[tileData]!!
+
+        val positionsAccessor = addAccessorForFloats(materialBuffer.positions, buffer)
+        var texCoordsAccessor: Int? = null
+        var colorsAccessor: Int? = null
+
+        if (tileData.materialId != -1) {
+            texCoordsAccessor = addAccessorForFloats(materialBuffer.texcoords!!, buffer)
+        } else {
+            colorsAccessor = addAccessorForFloats(materialBuffer.colors!!, buffer)
+        }
+
+        // primitive attributes
+        val attributes = Attributes(positionsAccessor, texCoordsAccessor, colorsAccessor)
+
+        // primitive
+        val primitives = ArrayList<Primitive>()
+        primitives.add(Primitive(attributes, rsIndexToMaterialIndex[tileData.materialId] ?: nullMaterial))
+
+        // mesh
+        val mesh = Mesh(primitives)
+        gltfModel.meshes.add(mesh)
+
+        // node
+        return Node(gltfModel.meshes.size - 1, name = "obj_tiles")
     }
 
     private fun addAccessorForFloats(
@@ -93,8 +126,14 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
         return gltfModel.accessors.size - 1
     }
 
-    override fun getOrCreateBuffersForMaterial(materialId: Int) = materialMap.getOrPut(materialId) {
-        MaterialBuffers(materialId >= 0)
+    override fun getOrCreateBuffersForTile(z: Int, materialId: Int): ObjectBuffers = tileMap.getOrPut(TileData(z, materialId)) {
+        ObjectBuffers(materialId >= 0)
+    }
+
+    override fun getOrCreateBuffersForObject(z: Int, objectType: Int, objectId: Int, materialId: Int): ObjectBuffers = objectMap.getOrPut(
+        ObjectData(z, objectType, objectId, materialId)
+    ) {
+        ObjectBuffers(materialId >= 0)
     }
 
     override fun addTextureMaterial(rsIndex: Int, imagePath: String) {
@@ -118,26 +157,75 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
     }
 
     override fun flush(name: String) {
-        if (materialMap.isNotEmpty()) {
-            val unflushedNodes = ArrayList<Node>()
-            for (materialId in materialMap.keys) {
-                unflushedNodes.add(addMesh(materialId, chunkBuffer))
+        if (objectMap.isNotEmpty() || tileMap.isNotEmpty()) {
+            val objectNodes = ArrayList<Pair<ObjectData, Node>>()
+            for (objectData in objectMap.keys) {
+                objectNodes.add(Pair(objectData, addObject(objectData, chunkBuffer)))
+            }
+
+            val tileNodes = ArrayList<Pair<TileData, Node>>()
+            for (tileData in tileMap.keys) {
+                tileNodes.add(Pair(tileData, addTile(tileData, chunkBuffer)))
             }
 
             // Now that the meshes have been added, clear old buffers out
-            materialMap.clear()
+            objectMap.clear()
+            tileMap.clear()
 
-            // Flush unflushed nodes; bundle into one parent node
+            val objectIndices = objectNodes.indices.map { Pair(objectNodes.get(it).first, it + gltfModel.nodes.size) }
+            val tileIndices = tileNodes.indices.map { Pair(tileNodes.get(it).first, it + objectIndices.size + gltfModel.nodes.size) }
+
+            val heightObjectTypeNodeMap = HashMap<Int, HashMap<Int, ArrayList<Pair<Int, Int>>>>()
+
+            for (objectData in objectIndices) {
+                val heightMap = heightObjectTypeNodeMap.getOrPut(objectData.first.z) { HashMap<Int, ArrayList<Pair<Int, Int>>>() }
+                val typeList = heightMap.getOrPut(objectData.first.objectTypeId) { ArrayList<Pair<Int, Int>>() }
+                typeList.add(Pair(objectData.first.objectId, objectData.second))
+            }
+
+            for (tileData in tileIndices) {
+                val heightMap = heightObjectTypeNodeMap.getOrPut(tileData.first.z) { HashMap<Int, ArrayList<Pair<Int, Int>>>() }
+                val typeList = heightMap.getOrPut(-1) { ArrayList<Pair<Int, Int>>() }
+                typeList.add(Pair(-1, tileData.second))
+            }
+
+            val heights = ArrayList<Node>()
+            for (height in heightObjectTypeNodeMap.keys) {
+                val objectTypeNodeMap = heightObjectTypeNodeMap[height]
+                val objectTypeNodes = ArrayList<Node>()
+                for (objectType in objectTypeNodeMap!!.keys) {
+                    if (objectType == -1) {
+                        // Tiles
+                        val tileNode = Node(mesh = objectTypeNodeMap[objectType]!![0].second, name = "obj_type_tiles")
+                        objectTypeNodes.add(tileNode)
+                        continue
+                    }
+                    val objectTypeList = objectTypeNodeMap[objectType]
+                    val objectNodes = ArrayList<Node>()
+                    for (obj in objectTypeList!!) {
+                        objectNodes.add(Node(mesh = obj.second, name = "obj_" + obj.first))
+                    }
+                    val objectIndices = objectNodes.indices.map { it + gltfModel.nodes.size }
+                    gltfModel.nodes.addAll(objectNodes)
+                    objectTypeNodes.add(Node(children = objectIndices, name = "obj_type_" + objectType))
+                }
+                val objectTypeIndices = objectTypeNodes.indices.map { it + gltfModel.nodes.size }
+                gltfModel.nodes.addAll(objectTypeNodes)
+
+                heights.add(Node(children = objectTypeIndices, name = "height_" + height))
+            }
+
+            val heightIndices = heights.indices.map { it + gltfModel.nodes.size }
+            gltfModel.nodes.addAll(heights)
+
             val sceneNode = Node(
                 name = name,
-                children = unflushedNodes.indices.map { it + gltfModel.nodes.size }
+                children = heightIndices
             )
-            gltfModel.nodes.addAll(unflushedNodes)
-            unflushedNodes.clear()
 
             // Add parent node into scene
-            sceneNodes.add(gltfModel.nodes.size)
             gltfModel.nodes.add(sceneNode)
+            sceneNodes.add(gltfModel.nodes.size - 1)
 
             // Flush buffers to data file
             chunkWriteListeners.forEach { it.onStartRegion(flushingRegionNum) }
