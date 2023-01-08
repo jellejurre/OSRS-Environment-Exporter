@@ -38,7 +38,7 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
 
     private val nullMaterial = createNullTextureMaterial(gltfModel)
 
-    private fun addObject(objectData: ObjectData, buffer: ByteChunkBuffer): Node {
+    private fun addObject(objectData: ObjectData, buffer: ByteChunkBuffer): Int {
         val materialBuffer = objectMap[objectData]!!
 
         val positionsAccessor = addAccessorForFloats(materialBuffer.positions, buffer)
@@ -63,10 +63,10 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
         gltfModel.meshes.add(mesh)
 
         // node
-        return Node(gltfModel.meshes.size - 1, name = "obj_" + objectData.objectId)
+        return gltfModel.meshes.size - 1
     }
 
-    private fun addTile(tileData: TileData, buffer: ByteChunkBuffer): Node {
+    private fun addTile(tileData: TileData, buffer: ByteChunkBuffer): Int {
         val materialBuffer = tileMap[tileData]!!
 
         val positionsAccessor = addAccessorForFloats(materialBuffer.positions, buffer)
@@ -91,7 +91,7 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
         gltfModel.meshes.add(mesh)
 
         // node
-        return Node(gltfModel.meshes.size - 1, name = "obj_tiles")
+        return gltfModel.meshes.size - 1
     }
 
     private fun addAccessorForFloats(
@@ -158,12 +158,12 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
 
     override fun flush(name: String) {
         if (objectMap.isNotEmpty() || tileMap.isNotEmpty()) {
-            val objectNodes = ArrayList<Pair<ObjectData, Node>>()
+            val objectNodes = ArrayList<Pair<ObjectData, Int>>()
             for (objectData in objectMap.keys) {
                 objectNodes.add(Pair(objectData, addObject(objectData, chunkBuffer)))
             }
 
-            val tileNodes = ArrayList<Pair<TileData, Node>>()
+            val tileNodes = ArrayList<Pair<TileData, Int>>()
             for (tileData in tileMap.keys) {
                 tileNodes.add(Pair(tileData, addTile(tileData, chunkBuffer)))
             }
@@ -172,8 +172,8 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
             objectMap.clear()
             tileMap.clear()
 
-            val objectIndices = objectNodes.indices.map { Pair(objectNodes.get(it).first, it + gltfModel.nodes.size) }
-            val tileIndices = tileNodes.indices.map { Pair(tileNodes.get(it).first, it + objectIndices.size + gltfModel.nodes.size) }
+            val objectIndices = objectNodes.indices.map { Pair(objectNodes.get(it).first, objectNodes.get(it).second) }
+            val tileIndices = tileNodes.indices.map { Pair(tileNodes.get(it).first, tileNodes.get(it).second) }
 
             val heightObjectTypeNodeMap = HashMap<Int, HashMap<Int, ArrayList<Pair<Int, Int>>>>()
 
@@ -211,7 +211,6 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
                 }
                 val objectTypeIndices = objectTypeNodes.indices.map { it + gltfModel.nodes.size }
                 gltfModel.nodes.addAll(objectTypeNodes)
-
                 heights.add(Node(children = objectTypeIndices, name = "height_" + height))
             }
 
