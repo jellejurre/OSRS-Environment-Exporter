@@ -15,10 +15,11 @@ interface MeshFormatExporter {
      *  @param z The RuneScape z value for the object.
      *  @param objectType The RuneScape object type ID.
      *  @param objectId The RuneScape object ID.
+     *  @param cacheIndex The index of the objcet in the runescape cache.
      *  @param materialId The RuneScape material ID, or a negative value for flat colours.
      *  @return The buffers for the given material ID.
      */
-    fun getOrCreateBuffersForObject(z: Int, objectType: Int, objectId: Int, materialId: Int): ObjectBuffers
+    fun getOrCreateBuffersForObject(z: Int, objectType: Int, objectId: Int, cacheIndex: Int, materialId: Int): ObjectBuffers
 
     /** Assigns a texture to the given RuneScape material ID.
      *  Subsequent calls with the same material ID will be ignored.

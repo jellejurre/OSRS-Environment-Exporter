@@ -22,7 +22,7 @@ import java.io.File
 class GlTFExporter(private val directory: String, private val chunkWriteListeners: List<ChunkWriteListener>) : MeshFormatExporter {
 
     data class TileData(val z: Int, val materialId: Int)
-    data class ObjectData(val z: Int, val objectTypeId: Int, val objectId: Int, val materialId: Int)
+    data class ObjectData(val z: Int, val objectTypeId: Int, val objectId: Int, val cacheIndex: Int, val materialId: Int)
 
     private val tileMap = HashMap<TileData, ObjectBuffers>()
     private val objectMap = HashMap<ObjectData, ObjectBuffers>()
@@ -130,8 +130,8 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
         ObjectBuffers(materialId >= 0)
     }
 
-    override fun getOrCreateBuffersForObject(z: Int, objectType: Int, objectId: Int, materialId: Int): ObjectBuffers = objectMap.getOrPut(
-        ObjectData(z, objectType, objectId, materialId)
+    override fun getOrCreateBuffersForObject(z: Int, objectType: Int, objectId: Int, cacheIndex:Int, materialId: Int): ObjectBuffers = objectMap.getOrPut(
+        ObjectData(z, objectType, objectId, cacheIndex, materialId)
     ) {
         ObjectBuffers(materialId >= 0)
     }
@@ -175,18 +175,18 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
             val objectIndices = objectNodes.indices.map { Pair(objectNodes.get(it).first, objectNodes.get(it).second) }
             val tileIndices = tileNodes.indices.map { Pair(tileNodes.get(it).first, tileNodes.get(it).second) }
 
-            val heightObjectTypeNodeMap = HashMap<Int, HashMap<Int, ArrayList<Pair<Int, Int>>>>()
+            val heightObjectTypeNodeMap = HashMap<Int, HashMap<Int, ArrayList<Triple<Int, Int, Int>>>>()
 
             for (objectData in objectIndices) {
-                val heightMap = heightObjectTypeNodeMap.getOrPut(objectData.first.z) { HashMap<Int, ArrayList<Pair<Int, Int>>>() }
-                val typeList = heightMap.getOrPut(objectData.first.objectTypeId) { ArrayList<Pair<Int, Int>>() }
-                typeList.add(Pair(objectData.first.objectId, objectData.second))
+                val heightMap = heightObjectTypeNodeMap.getOrPut(objectData.first.z) { HashMap<Int, ArrayList<Triple<Int, Int, Int>>>() }
+                val typeList = heightMap.getOrPut(objectData.first.objectTypeId) { ArrayList<Triple<Int, Int, Int>>() }
+                typeList.add(Triple(objectData.first.objectId, objectData.second, objectData.first.cacheIndex))
             }
 
             for (tileData in tileIndices) {
-                val heightMap = heightObjectTypeNodeMap.getOrPut(tileData.first.z) { HashMap<Int, ArrayList<Pair<Int, Int>>>() }
-                val typeList = heightMap.getOrPut(-1) { ArrayList<Pair<Int, Int>>() }
-                typeList.add(Pair(-1, tileData.second))
+                val heightMap = heightObjectTypeNodeMap.getOrPut(tileData.first.z) { HashMap<Int, ArrayList<Triple<Int, Int, Int>>>() }
+                val typeList = heightMap.getOrPut(-1) { ArrayList<Triple<Int, Int, Int>>() }
+                typeList.add(Triple(-1, tileData.second, -1))
             }
 
             val heights = ArrayList<Node>()
@@ -203,7 +203,7 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
                     val objectTypeList = objectTypeNodeMap[objectType]
                     val objectNodes = ArrayList<Node>()
                     for (obj in objectTypeList!!) {
-                        objectNodes.add(Node(mesh = obj.second, name = "obj_" + obj.first))
+                        objectNodes.add(Node(mesh = obj.second, name = "obj_" + obj.first + "_index_" + obj.third))
                     }
                     val objectIndices = objectNodes.indices.map { it + gltfModel.nodes.size }
                     gltfModel.nodes.addAll(objectNodes)

@@ -24,8 +24,9 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
     val sceneLoadProgressListeners = ArrayList<SceneLoadProgressListener>()
     val chunkWriteListeners = ArrayList<ChunkWriteListener>()
     var sceneId = (System.currentTimeMillis() / 1000L).toInt()
-
+    var cacheIndex: Int = 0;
     fun exportSceneToFile(scene: Scene, directory: String, exportFlat: Boolean) {
+        cacheIndex = 0;
         // create output directory if it does not yet exist
         File(directory).mkdirs()
 
@@ -277,11 +278,13 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
         val triangleCount = model.modelDefinition.faceCount
 
         for (i in 0 until triangleCount) {
-            pushFace(fmt, model, i, tileX, tileY, height, z, entity.objectDefinition.id, entity.type)
+            pushFace(fmt, model, i, tileX, tileY, height, z, entity.objectDefinition.id, entity.type, cacheIndex)
         }
+
+        cacheIndex++;
     }
 
-    private fun pushFace(fmt: MeshFormatExporter, model: Model, face: Int, tileX: Int, tileY: Int, height: Int, objectZ: Int, objectId: Int, objectTypeId: Int) {
+    private fun pushFace(fmt: MeshFormatExporter, model: Model, face: Int, tileX: Int, tileY: Int, height: Int, objectZ: Int, objectId: Int, objectTypeId: Int, cacheIndex: Int) {
         val modelDefinition = model.modelDefinition
 
         val vertexX = model.vertexPositionsX
@@ -337,7 +340,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
 
         fmt.addTexture(textureId)
 
-        val objectBuffer = fmt.getOrCreateBuffersForObject(objectZ, objectTypeId, objectId, textureId)
+        val objectBuffer = fmt.getOrCreateBuffersForObject(objectZ, objectTypeId, objectId, cacheIndex, textureId)
 
         objectBuffer.addVertex(
             (vertexX[triangleA] + x).toFloat() / scale,
