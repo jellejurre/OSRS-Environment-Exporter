@@ -15,6 +15,7 @@ import models.scene.SceneLoadProgressListener
 import models.scene.SceneTile
 import ui.CancelledException
 import utils.ChunkWriteListener
+import utils.Utils
 import java.io.File
 import java.time.Instant
 import java.time.ZoneOffset
@@ -25,7 +26,8 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
     val chunkWriteListeners = ArrayList<ChunkWriteListener>()
     var sceneId = (System.currentTimeMillis() / 1000L).toInt()
     var cacheIndex: Int = 0;
-    fun exportSceneToFile(scene: Scene, directory: String, exportFlat: Boolean) {
+
+    fun exportSceneToFile(scene: Scene, directory: String, exportFlat: Boolean, exportAbsoluteLocation: Boolean = false) {
         cacheIndex = 0;
         // create output directory if it does not yet exist
         File(directory).mkdirs()
@@ -47,8 +49,17 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
             for (rx in 0 until scene.cols) {
                 for (ry in 0 until scene.rows) {
                     val region = scene.getRegion(rx, ry) ?: continue
-                    val baseX = rx * REGION_SIZE
-                    val baseY = ry * REGION_SIZE
+                    val regionId = region.locationsDefinition.regionId
+                    val baseX = if (exportAbsoluteLocation) {
+                        Utils.getRegionIdX(regionId) * REGION_SIZE - 3072
+                    } else {
+                        rx * REGION_SIZE
+                    }
+                    val baseY = if (exportAbsoluteLocation) {
+                        Utils.getRegionIdY(regionId) * REGION_SIZE - 3072
+                    } else {
+                        ry * REGION_SIZE
+                    }
                     debugOptionsModel.zLevelsSelected.forEachIndexed { z, visible ->
                         if (visible.get()) {
                             val tilePlane = region.tiles[z]

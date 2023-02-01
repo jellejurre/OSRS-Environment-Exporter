@@ -20,7 +20,10 @@ import models.scene.SceneRegionBuilder
 import utils.ChunkWriteListener
 import utils.ProgressContainer
 
-class CliExporter(startupOptions: StartupOptions) {
+class CliExporter(
+    startupOptions: StartupOptions,
+    exportAbsoluteCoordinates: Boolean = false
+) {
     val scene: Scene
     val exporter: SceneExporter
 
@@ -50,7 +53,7 @@ class CliExporter(startupOptions: StartupOptions) {
 
         scene.sceneChangeListeners.add {
             // Export the scene once it has been loaded.
-            exporter.exportSceneToFile(scene, startupOptions.exportDir, startupOptions.exportFlat)
+            exporter.exportSceneToFile(scene, startupOptions.exportDir, startupOptions.exportFlat, exportAbsoluteCoordinates)
         }
 
         // Listen for progress updates
@@ -82,6 +85,10 @@ class CliExporter(startupOptions: StartupOptions) {
 
     fun exportRadius(regionId: Int, radius: Int) {
         scene.loadRadius(regionId, radius)
+    }
+
+    fun exportRegions(regionIds: List<List<Int?>>) {
+        scene.loadRegions(regionIds)
     }
 
     object CliProgressContainer : ProgressContainer {

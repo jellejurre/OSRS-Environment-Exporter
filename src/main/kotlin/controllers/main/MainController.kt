@@ -299,7 +299,7 @@ class MainController constructor(
         Thread {
             try {
                 try {
-                    exporter.exportSceneToFile(scene, startupOptions.exportDir, startupOptions.exportFlat)
+                    exporter.exportSceneToFile(scene, startupOptions.exportDir, startupOptions.exportFlat, false)
                 } catch (_: CancelledException) {
                     return@Thread
                 }

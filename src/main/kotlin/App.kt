@@ -152,7 +152,7 @@ fun main(args: Array<String>) {
     if (!startupOptions.exportOnly) {
         startSwingApplication(configOptions, startupOptions)
     } else {
-        CliExporter(startupOptions).exportRadius(startupOptions.regionId, startupOptions.radius)
+        CliExporter(startupOptions, exportAbsoluteCoordinates = false).exportRadius(startupOptions.regionId, startupOptions.radius)
     }
 }
 
