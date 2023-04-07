@@ -196,8 +196,10 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
                 for (objectType in objectTypeNodeMap!!.keys) {
                     if (objectType == -1) {
                         // Tiles
-                        val tileNode = Node(mesh = objectTypeNodeMap[objectType]!![0].second, name = "obj_type_tiles")
-                        objectTypeNodes.add(tileNode)
+                        for (i in 0 until objectTypeNodeMap[objectType]!!.count()){
+                            val tileNode = Node(mesh = objectTypeNodeMap[objectType]!![i].second, name = "obj_type_tiles_" + i)
+                            objectTypeNodes.add(tileNode)
+                        }
                         continue
                     }
                     val objectTypeList = objectTypeNodeMap[objectType]
