@@ -1,0 +1,1 @@
+"C:\Program Files\Blender Foundation\Blender 3.4\blender.exe" -P exportscript.py
