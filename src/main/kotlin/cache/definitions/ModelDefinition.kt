@@ -304,6 +304,7 @@ open class ModelDefinition(
 //        }
 //    }
 
+    var flipZ: Boolean = false;
     fun flipZ() {
         for (var1 in 0 until vertexCount) {
             vertexPositionsZ[var1] = -vertexPositionsZ[var1]
@@ -314,7 +315,11 @@ open class ModelDefinition(
             faceVertexIndices3[var1] = var2
         }
         reset()
+        flipZ = !flipZ;
     }
+
+    var rotateAngle: Int = 0;
+
 
     fun rotate(angle: Int) {
         val var2: Int = SINE[angle]
@@ -325,6 +330,7 @@ open class ModelDefinition(
             this.vertexPositionsX[var4] = var5
         }
         reset()
+        rotateAngle = (rotateAngle + angle) % 360;
     }
 
     fun rotateY90Ccw() {
@@ -334,6 +340,7 @@ open class ModelDefinition(
             vertexPositionsZ[var1] = -var2
         }
         reset()
+        rotateAngle = (rotateAngle + 270) % 360;
     }
 
     fun rotateY180() {
@@ -342,6 +349,7 @@ open class ModelDefinition(
             vertexPositionsZ[var1] = -vertexPositionsZ[var1]
         }
         reset()
+        rotateAngle = (rotateAngle + 180) % 360;
     }
 
     fun rotateY270Ccw() {
@@ -351,6 +359,7 @@ open class ModelDefinition(
             vertexPositionsX[var1] = -var2
         }
         reset()
+        rotateAngle = (rotateAngle + 90) % 360;
     }
 
     private fun reset() {

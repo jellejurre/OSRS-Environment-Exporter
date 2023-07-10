@@ -1,1 +1,1 @@
-"C:\Program Files\Blender Foundation\Blender 3.4\blender.exe" -P exportscript.py
+"C:\Program Files (x86)\Steam\steamapps\common\Blender\blender.exe" -P exportscript.py
