@@ -351,7 +351,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
 
         fmt.addTexture(textureId)
 
-        val objectBuffer = fmt.getOrCreateBuffersForObject(objectZ, objectTypeId, objectId, cacheIndex, textureId)
+        val objectBuffer = fmt.getOrCreateBuffersForObject(objectZ, objectTypeId, objectId, cacheIndex, textureId, modelDefinition.rotateAngle, modelDefinition.flipZ)
 
         objectBuffer.addVertex(
             (vertexX[triangleA] + x).toFloat() / scale,
