@@ -52,7 +52,7 @@ fun main() {
                 println("\n")
             }
 
-            CliExporter(startupOptions, exportAbsoluteCoordinates = true).exportRegions(newList)
+            
             CliExporter(startupOptions, regionId = newList[0][0], exportAbsoluteCoordinates = true).exportRegions(newList)
 
             yIndex = yIndexIncremented

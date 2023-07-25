@@ -64,6 +64,8 @@ class Model private constructor(
     private var xyzMag = 0
     private var diagonalMag = 0
 
+    var contourChange = 0f;
+
     var sceneId = -1 // scene ID in which this model was rendered
 
     private fun computeBounds(recalculate: Boolean = false) {
@@ -148,6 +150,7 @@ class Model private constructor(
         var var19: Int
         var var20: Int
         var var21: Int
+        var diff: Float = 0f;
         if (clipType == 0) {
             var12 = 0
             while (var12 < modelDefinition.vertexCount) {
@@ -166,6 +169,7 @@ class Model private constructor(
                 var21 = var19 * (128 - var16) + var20 * var16 shr 7
                 vertexPositionsY[var12] =
                     var21 + modelDefinition.vertexPositionsY[var12] - height
+                diff += Math.abs(vertexPositionsY[var12] - modelDefinition.vertexPositionsY[var12])
                 ++var12
             }
         } else {
@@ -185,13 +189,16 @@ class Model private constructor(
                     var20 = first * (128 - var15) + second * var15 shr 7
                     var21 = third * (128 - var15) + var15 * fourth shr 7
                     val var22 = var20 * (128 - var17) + var21 * var17 shr 7
+
                     vertexPositionsY[var12] =
                         (clipType - var13) * (var22 - height) / clipType + modelDefinition.vertexPositionsY[var12]
+                    diff += Math.abs(vertexPositionsY[var12] - modelDefinition.vertexPositionsY[var12])
                 }
                 ++var12
             }
         }
-
+        diff = diff / modelDefinition.vertexCount;
+        contourChange = diff;
         // Not sure why this needs radius 0. Still don't understand those shaders.
         xyzMag = 0
     }

@@ -289,13 +289,13 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
         val triangleCount = model.modelDefinition.faceCount
 
         for (i in 0 until triangleCount) {
-            pushFace(fmt, model, i, tileX, tileY, height, z, entity.objectDefinition.id, entity.type, cacheIndex)
+            pushFace(fmt, model, i, tileX, tileY, height, z, model.modelDefinition.id, entity.type, cacheIndex, entity.objectDefinition.contouredGround)
         }
 
         cacheIndex++;
     }
 
-    private fun pushFace(fmt: MeshFormatExporter, model: Model, face: Int, tileX: Int, tileY: Int, height: Int, objectZ: Int, objectId: Int, objectTypeId: Int, cacheIndex: Int) {
+    private fun pushFace(fmt: MeshFormatExporter, model: Model, face: Int, tileX: Int, tileY: Int, height: Int, objectZ: Int, objectId: Int, objectTypeId: Int, cacheIndex: Int, contouredGround: Int) {
         val modelDefinition = model.modelDefinition
 
         val vertexX = model.vertexPositionsX
@@ -350,8 +350,8 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
         val textureId = if (faceTextures != null) faceTextures[face].toInt() else -1
 
         fmt.addTexture(textureId)
-
-        val objectBuffer = fmt.getOrCreateBuffersForObject(objectZ, objectTypeId, objectId, cacheIndex, textureId, modelDefinition.rotateAngle, modelDefinition.flipZ)
+        val contourChange = if (contouredGround >= 0) model.contourChange else 0.0f;
+        val objectBuffer = fmt.getOrCreateBuffersForObject(objectZ, objectTypeId, objectId, cacheIndex, textureId, modelDefinition.rotateAngle, modelDefinition.flipZ, contourChange)
 
         objectBuffer.addVertex(
             (vertexX[triangleA] + x).toFloat() / scale,

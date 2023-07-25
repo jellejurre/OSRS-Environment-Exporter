@@ -22,7 +22,7 @@ import java.io.File
 class GlTFExporter(private val directory: String, private val chunkWriteListeners: List<ChunkWriteListener>) : MeshFormatExporter {
 
     data class TileData(val z: Int, val materialId: Int)
-    data class ObjectData(val z: Int, val objectTypeId: Int, val objectId: Int, val cacheIndex: Int, val materialId: Int, val rotateAngle: Int, val flipZ: Boolean)
+    data class ObjectData(val z: Int, val objectTypeId: Int, val objectId: Int, val cacheIndex: Int, val materialId: Int, val rotateAngle: Int, val flipZ: Boolean, val contourChange: Float)
 
     private val tileMap = HashMap<TileData, ObjectBuffers>()
     private val objectMap = HashMap<ObjectData, ObjectBuffers>()
@@ -130,8 +130,8 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
         ObjectBuffers(materialId >= 0)
     }
 
-    override fun getOrCreateBuffersForObject(z: Int, objectType: Int, objectId: Int, cacheIndex:Int, materialId: Int, rotateAngle: Int, flipZ: Boolean): ObjectBuffers = objectMap.getOrPut(
-        ObjectData(z, objectType, objectId, cacheIndex, materialId, rotateAngle, flipZ)
+    override fun getOrCreateBuffersForObject(z: Int, objectType: Int, objectId: Int, cacheIndex:Int, materialId: Int, rotateAngle: Int, flipZ: Boolean, contourChange: Float): ObjectBuffers = objectMap.getOrPut(
+        ObjectData(z, objectType, objectId, cacheIndex, materialId, rotateAngle, flipZ, contourChange)
     ) {
         ObjectBuffers(materialId >= 0)
     }
@@ -156,7 +156,7 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
         return gltfModel.materials.size - 1
     }
 
-    data class MeshNodeObject(val objectId: Int, val objectIndex: Int, val cacheIndex: Int, val flipZ: Boolean, val rotateAngle: Int)
+    data class MeshNodeObject(val objectId: Int, val objectIndex: Int, val cacheIndex: Int, val flipZ: Boolean, val rotateAngle: Int, val contourChange: Float)
 
     override fun flush(name: String) {
         if (objectMap.isNotEmpty() || tileMap.isNotEmpty()) {
@@ -182,13 +182,13 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
             for (objectData in objectIndices) {
                 val heightMap = heightObjectTypeNodeMap.getOrPut(objectData.first.z) { HashMap<Int, ArrayList<MeshNodeObject>>() }
                 val typeList = heightMap.getOrPut(objectData.first.objectTypeId) { ArrayList<MeshNodeObject>() }
-                typeList.add( MeshNodeObject(objectData.first.objectId, objectData.second, objectData.first.cacheIndex, objectData.first.flipZ, objectData.first.rotateAngle))
+                typeList.add( MeshNodeObject(objectData.first.objectId, objectData.second, objectData.first.cacheIndex, objectData.first.flipZ, objectData.first.rotateAngle, objectData.first.contourChange))
             }
 
             for (tileData in tileIndices) {
                 val heightMap = heightObjectTypeNodeMap.getOrPut(tileData.first.z) { HashMap<Int, ArrayList<MeshNodeObject>>() }
                 val typeList = heightMap.getOrPut(-1) { ArrayList<MeshNodeObject>() }
-                typeList.add(MeshNodeObject(-1, tileData.second, -1, false, 0))
+                typeList.add(MeshNodeObject(-1, tileData.second, -1, false, 0, 0f))
             }
 
             val heights = ArrayList<Node>()
@@ -207,7 +207,7 @@ class GlTFExporter(private val directory: String, private val chunkWriteListener
                     val objectTypeList = objectTypeNodeMap[objectType]
                     val objectNodes = ArrayList<Node>()
                     for (obj in objectTypeList!!) {
-                        objectNodes.add(Node(mesh = obj.objectIndex, name = "obj_" + obj.objectId + "_index_" + obj.cacheIndex + "_" + (if (obj.flipZ) "T" else "F") + obj.rotateAngle.toString().padStart(3, '0')))
+                        objectNodes.add(Node(mesh = obj.objectIndex, name = "obj_" + obj.objectId + "_index_" + obj.cacheIndex + "_" + (if (obj.flipZ) "T" else "F") + obj.rotateAngle.toString().padStart(3, '0') + "_" + (obj.contourChange >= 10)))
                     }
                     val objectIndices = objectNodes.indices.map { it + gltfModel.nodes.size }
                     gltfModel.nodes.addAll(objectNodes)
