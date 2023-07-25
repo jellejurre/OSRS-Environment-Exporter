@@ -22,6 +22,7 @@ import utils.ProgressContainer
 
 class CliExporter(
     startupOptions: StartupOptions,
+    regionId: Int = 0,
     exportAbsoluteCoordinates: Boolean = false
 ) {
     val scene: Scene
@@ -53,9 +54,8 @@ class CliExporter(
 
         scene.sceneChangeListeners.add {
             // Export the scene once it has been loaded.
-            exporter.exportSceneToFile(scene, startupOptions.exportDir, startupOptions.exportFlat, exportAbsoluteCoordinates)
+            exporter.exportSceneToFile(scene, startupOptions.exportDir, startupOptions.exportFlat, exportAbsoluteCoordinates, regionId.toString())
         }
-
         // Listen for progress updates
         scene.sceneLoadProgressListeners.add(object : CountingSceneLoadProgressListener() {
             override val progressContainer: ProgressContainer get() = CliProgressContainer

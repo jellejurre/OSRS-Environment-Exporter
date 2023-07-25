@@ -24,8 +24,8 @@ fun main() {
     val configOptions = ConfigOptions(Configuration())
     val startupOptions = StartupOptions(configOptions)
 
-    val xIncrementSize = 4
-    val yIncrementSize = 4
+    val xIncrementSize = 1
+    val yIncrementSize = 1
 
     var xIndex = 0
 
@@ -38,7 +38,7 @@ fun main() {
         while (yIndex < maxYIndex) {
             val yIndexIncremented = (yIndex + yIncrementSize).coerceAtMost(maxYIndex)
 
-            val newList = regionIds.subSet(
+            var newList = regionIds.subSet(
                 xInitialIndex = xIndex,
                 yInitialIndex = yIndex,
                 yFinalIndex = yIndexIncremented,
@@ -53,6 +53,7 @@ fun main() {
             }
 
             CliExporter(startupOptions, exportAbsoluteCoordinates = true).exportRegions(newList)
+            CliExporter(startupOptions, regionId = newList[0][0], exportAbsoluteCoordinates = true).exportRegions(newList)
 
             yIndex = yIndexIncremented
         }

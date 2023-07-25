@@ -27,7 +27,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
     var sceneId = (System.currentTimeMillis() / 1000L).toInt()
     var cacheIndex: Int = 0;
 
-    fun exportSceneToFile(scene: Scene, directory: String, exportFlat: Boolean, exportAbsoluteLocation: Boolean = false) {
+    fun exportSceneToFile(scene: Scene, directory: String, exportFlat: Boolean, exportAbsoluteLocation: Boolean = false, regionId: String) {
         cacheIndex = 0;
         // create output directory if it does not yet exist
         File(directory).mkdirs()
@@ -35,7 +35,7 @@ class SceneExporter(private val textureManager: TextureManager, private val debu
         // create timestamped output directory
         val outDir =
             if (exportFlat) directory
-            else "$directory/${makeTimestamp()}"
+            else "$directory/${makeTimestamp()}=${regionId}"
         File(outDir).mkdirs()
 
         // init glTF builder
